@@ -47,11 +47,15 @@
 //! # let auth_client = fireplace::auth::test_helpers::initialise()?;
 //! use fireplace::auth::models::NewUser;
 //!
-//! let user_id = auth_client.create_user(NewUser {
-//!     email: "user@example.com".to_string(),
-//!     password: "secure_password".to_string(),
-//!     display_name: Some("John Doe".to_string()),
-//! }).await?;
+//!  let new_user = NewUser::builder()
+//!     .display_name("John Doe".to_string())
+//!     .username("john_doe".to_string())
+//!     .email("user@example.com".to_string())
+//!     .password("hello123".to_string())
+//!     .email_verified(true)
+//!     .build();
+//!
+//! let user_id = auth_client.create_user(new_user).await?;
 //!
 //! println!("Created user: {}", user_id);
 //! # Ok(())
@@ -90,9 +94,10 @@
 //!
 //! auth_client.update_user(
 //!     "user_id_here",
-//!     UpdateUserValues::new()
+//!     UpdateUserValues::builder()
 //!         .display_name(Some("Jane Doe".to_string()))
 //!         .disabled(false)
+//!         .build()
 //! ).await?;
 //! # Ok(())
 //! # }
@@ -198,7 +203,7 @@
 use std::collections::HashMap;
 
 use anyhow::Context;
-use reqwest::Response;
+use reqwest::{Client, ClientBuilder, Response};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{
@@ -209,7 +214,6 @@ use crate::{
     },
     error::FirebaseError,
 };
-
 use self::{
     credential::{ApiAuthTokenManager, UserTokenManager},
     models::{GetAccountInfoResponse, NewUser, User},
@@ -226,26 +230,113 @@ pub struct FirebaseAuthClient {
     user_token_manager: UserTokenManager,
     api_auth_token_manager: ApiAuthTokenManager,
     project_id: String,
+    emulated: bool,
 }
+
 
 impl FirebaseAuthClient {
     pub fn new(service_account: ServiceAccount) -> Result<Self, FirebaseError> {
-        let client = reqwest::Client::builder()
+        let client_builder = Self::http_client_builder(None)?;
+        let client = client_builder
             .https_only(true)
             .build()
             .context("Failed to create HTTP client")?;
 
+
+
+        Ok(Self::create_firebase_auth_client(client,
+              "https://identitytoolkit.googleapis.com/v1", service_account,false))
+    }
+
+    fn create_firebase_auth_client(
+        client: Client, firebase_auth_api_url: &str ,service_account: ServiceAccount, emulated: bool) -> Self{
         let credential_manager = ApiAuthTokenManager::new(service_account.clone());
         let project_id = service_account.project_id.clone();
         let token_handler = UserTokenManager::new(service_account, client.clone());
 
-        Ok(Self {
+        Self {
             user_token_manager: token_handler,
             client,
-            api_url: "https://identitytoolkit.googleapis.com/v1".to_string(),
+            api_url: firebase_auth_api_url.to_string(),
             api_auth_token_manager: credential_manager,
             project_id,
-        })
+            emulated,
+        }
+    }
+
+    pub fn new_with_proxy(service_account: ServiceAccount, proxy_url: Option<&str>) -> Result<Self, FirebaseError> {
+        let client_builder = Self::http_client_builder(proxy_url)?;
+        let client = client_builder
+            .https_only(true)
+            .build()
+            .context("Failed to create HTTP client")?;
+
+        Ok(Self::create_firebase_auth_client(client,
+                "https://identitytoolkit.googleapis.com/v1", service_account,false))
+    }
+
+    const EMULATOR_DUMMY_KEY: &'static str = "-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC+0fXCo5tN9xdW
+ri8CaEmHOp0ok3f4AGrz56fL0tZut0zK6NxFtsyuIe5zmvgAtUSRuQB5kSiC+m6D
+EI+vE1PK+V5cKaoLdSGnR3e/TwOaag62z9LHVtl7pafnbR292m7v6J6lUftbME5O
+ptJToI0rFjFxHRPhBe+DejqTF4Maa/Vjr8l4XWYUjKDnpgWhPB+cMWFoaS0Iv5eC
+LZ6nARcmAqOv4q29qtoG/Fl2GAeTQNWXRn7YPz3P6bvjde7OIGJ+e3UDFSykZoJc
+V8sX6jsvcfIDxLpDbB8JF+jjEJFP2tQ91Bhk7Jm4z4xvyz1LGzWMrTCPiWusU2j0
+3VGMOLv1AgMBAAECggEAPrg6RCiMcnrl4+rKrsriaB1e7KhUBWL1xId/AqKhMrDy
+/7q8M/namt2yR7NHEsyB5jfdrReGLk7sJg46e/wpTYzbdAWJy8xLLHV0KaBp+cYk
+Yfg7OqQURez0HEAkR3PVhOt7wbEJojZldrqkZTJfVCsuQxSgpRTTXe698/0FbZg/
+BIN0cC3KfbIXM+IWAZ02TWUgaqyYUKqLTyt5NhPYiKGxOH1pQiGzn+qR16QiFx5q
+v2U9L4dIM1MjN9snqZdQPFsdQdZsx5ZG55ItDNA6Ld1zv39t83P1z/frIkbG6WGx
+yKl7pDahi9BMXS7sRra3aIx6MiH6BA0y2PbReT0+3QKBgQDpYpSVqs3+cp7pj8gB
+sKgCnU4+TANjlq0PM8PGpaLCA+8V1cwVYNpn92vOwHBa0BeYIcX5v3ZUOoBtuqa2
+6p3KBADyDC+OnL2Wn0NZ3UAhh+vNTIb020aBk+rdr342yNqX15QwSn2slk6Ugb2T
+aGj9oGtR8JtkRzAhd2XQHQ2zLwKBgQDRT4BfxHQ9vxX1Km4aJKo4Fa0gDBGD7l9C
+A5ScYxevV1zq8Ie8oIUH1NqSdKXoQ5zUGEsj+yC9oNQCE3wLtLK3nogKX/hN0pJr
+Am+NTM76Mg1L4xehB8QmDo7fzDDsfRULHGW4C/R5I3rq0NacKdj+2evRfkgTFsIa
+OIems+kKGwKBgQCgG6ETjDoFdVzPnnP3tNmN8Zzb4AnzKEtRQpHslXUy5MAAmsuH
+Xwp2iKbND/gEVP3awFCxJUhoQDobDRGSKyJUlKqRYwq9K4pk6p2p6L82QajjDr0G
+/edAvdlCfEJ6ExDjWmGvP2s4G2WNO/RyTA668HKvpAD2ql+6lc6jF0tuwQKBgGFz
+o3BzNi+9dQq1m5eedIYySW2/ULRdWoqQwjNhy5g+k6trG7eOAQIZbz57Ave16yGw
+weNZu++uHqdszPdiRUdKj0pNTn1lSfh6pNdj6IYCocAwVkMKK6AQbSLznd+tiQuo
+SA+9uTBhfYwweYsxzK8zZSEfq4z/rpWotje+UgT7AoGBAKDSIUjRSP1eSsbRRd0Y
+92MvGJQ8SBP2LSNYsCmn9m4aHCKTEhJHmxMMSj2B6heG1k9Ih+LmyvddbcL5gxuJ
+SRI5IBgi6eBij9lM8FaLjlE3tpdblx/Xij3/4/WDGu1c3cKAHNVbNktPmnZ2fE34
+lPTlzALOoknxQtKOWgLsu7XF
+-----END PRIVATE KEY-----
+";
+
+    pub fn emulator(emulator_url:  &str, proxy_url: Option<&str>) -> Result<Self, FirebaseError> {
+        let client_builder = Self::http_client_builder(proxy_url)?;
+        let client = client_builder
+            .https_only(false)
+            .build()
+            .context("Failed to create HTTP client for emulator")?;
+
+        let dummy_service_account = ServiceAccount{
+            project_id: "demo-firebase-project".to_string(),
+            private_key: Self::EMULATOR_DUMMY_KEY.to_string(),
+            private_key_id: "mock_private_key_id_123456789".to_string(),
+            client_email: "firebase-adminsdk-mock@://gserviceaccount.com".to_string(),
+            client_id: "://googleusercontent.com".to_string(),
+        };
+
+        let emulator_auth_url = format!("{emulator_url}/identitytoolkit.googleapis.com/v1");
+        Ok(Self::create_firebase_auth_client(client, emulator_auth_url.as_str(), dummy_service_account, true))
+    }
+
+    fn http_client_builder(proxy_uri :Option<&str>) -> Result<ClientBuilder, FirebaseError>{
+        let client_builder = Client::builder();
+       match proxy_uri {
+           Some(proxy_url) => {
+               let proxy = reqwest::Proxy::all(proxy_url)
+                   .context(format!("Failed to connect proxy {}", proxy_url))?;
+
+               Ok(client_builder.proxy(proxy))
+           }
+           None => {
+               Ok(client_builder)
+           }
+       }
     }
 
     fn url(&self, path: impl AsRef<str>) -> String {
@@ -262,14 +353,17 @@ impl FirebaseAuthClient {
     }
 
     async fn get_access_token(&self) -> Result<String, FirebaseError> {
-        let access_token = self
-            .api_auth_token_manager
-            .get_access_token()
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to get access token: {e}");
-                e
-            })?;
+        let access_token = match self.emulated{
+            true => "owner".to_string(),
+            false => self
+                .api_auth_token_manager
+                .get_access_token()
+                .await
+                .map_err(|e| {
+                    tracing::error!("Failed to get access token: {e}");
+                    e
+                })?
+        };
 
         Ok(access_token)
     }
@@ -333,11 +427,15 @@ impl FirebaseAuthClient {
     ///
     /// // Create some user so we can get a valid ID token
     /// let user_id = auth_client
-    ///     .create_user(NewUser {
-    ///         display_name: Some("Mario".to_string()),
-    ///         email: format!("{}@example.com", Ulid::new()),
-    ///         password: Ulid::new().to_string(),
-    ///     })
+    ///     .create_user(
+    ///         NewUser::builder()
+    ///             .display_name("Mario".to_string())
+    ///             .username("mario".to_string())
+    ///             .email(format!("{}@example.com", Ulid::new()))
+    ///             .password( Ulid::new().to_string())
+    ///             .email_verified(false)
+    ///             .build()
+    ///     )
     ///     .await?;
     ///
     /// // Generate custom token, which the "user" can use to sign into Firebase
@@ -386,11 +484,15 @@ impl FirebaseAuthClient {
     /// # use fireplace::auth::models::NewUser;
     /// # use serde::Deserialize;
     /// # let user_id = auth_client
-    /// #     .create_user(NewUser {
-    /// #         display_name: Some("Mario".to_string()),
-    /// #         email: format!("{}@example.com", Ulid::new()),
-    /// #         password: Ulid::new().to_string(),
-    /// #     })
+    /// #     .create_user(
+    /// #        NewUser::builder()
+    /// #            .display_name("Mario".to_string())
+    /// #            .username("mario".to_string())
+    /// #            .email(format!("{}@example.com", Ulid::new()))
+    /// #            .password( Ulid::new().to_string())
+    /// #            .email_verified(false)
+    /// #            .build()
+    /// #        )
     /// #     .await?;
     /// # let custom_token = auth_client.create_custom_token(&user_id).await?;
     /// # let id_token = auth_client.sign_in_with_custom_token(&custom_token).await?;
@@ -480,11 +582,15 @@ impl FirebaseAuthClient {
     /// // Create a user we can fetch afterwards
     /// let email = format!("{}@example.com", Ulid::new());
     /// let user = auth_client
-    ///     .create_user(NewUser {
-    ///         display_name: Some("Mario".to_string()),
-    ///         email: email.clone(),
-    ///         password: Ulid::new().to_string(),
-    ///     })
+    ///     .create_user(
+    ///         NewUser::builder()
+    ///             .display_name("Mario".to_string())
+    ///             .username("mario".to_string())
+    ///             .email(format!("{}@example.com", Ulid::new()))
+    ///             .password( Ulid::new().to_string())
+    ///             .email_verified(false)
+    ///             .build()
+    ///     )
     ///     .await?;
     ///
     /// let user = auth_client.get_user(&user).await?.unwrap();
@@ -669,11 +775,13 @@ impl FirebaseAuthClient {
     /// use fireplace::{auth::models::NewUser, error::FirebaseError};
     /// use ulid::Ulid;
     ///
-    /// let new_user = NewUser {
-    ///     display_name: Some("Mario".to_string()),
-    ///     email: format!("{}@example.com", Ulid::new()),
-    ///     password: Ulid::new().to_string(),
-    /// };
+    /// let new_user = NewUser::builder()
+    ///     .display_name("Mario".to_string())
+    ///     .username("mario".to_string())
+    ///     .email(format!("{}@example.com", Ulid::new()))
+    ///     .password( Ulid::new().to_string())
+    ///     .email_verified(false)
+    ///     .build();
     ///
     /// // When we create the user, we get back their unique user ID
     /// let user_id = auth_client.create_user(new_user.clone()).await?;
@@ -698,6 +806,7 @@ impl FirebaseAuthClient {
         let res = self
             .auth_post(self.url("/accounts:signUp"))
             .await?
+            .header("Content-Type", "application/json")
             .body(body)
             .send()
             .await
@@ -759,9 +868,10 @@ impl FirebaseAuthClient {
     /// let res = auth_client
     ///     .update_user(
     ///         &user_id,
-    ///         UpdateUserValues::new()
+    ///          UpdateUserValues::builder()
     ///             .email(&new_email)
-    ///             .display_name(new_display_name),
+    ///             .display_name(new_display_name)
+    ///             .build(),
     ///     )
     ///     .await?;
     ///

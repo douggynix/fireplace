@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_with::skip_serializing_none;
+use typed_builder_macro::TypedBuilder;
 
 mod update_user;
 
@@ -63,10 +65,19 @@ where
     Ok(t)
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 pub struct NewUser {
+    #[builder(default = None, setter(into))]
     pub display_name: Option<String>,
     pub email: String,
     pub password: String,
+    #[builder(default = None, setter(into))]
+    #[serde(rename = "localId")]
+    pub username: Option<String>,
+    #[builder(default = false)]
+    pub email_verified: bool,
+    #[builder(default = None, setter(into))]
+    pub phone_number: Option<String>,
 }
