@@ -21,7 +21,6 @@ pub struct UpdateUserValues {
     pub phone_number: Option<String>,
 }
 
-
 #[skip_serializing_none]
 #[derive(Serialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
@@ -53,6 +52,5 @@ impl<'a> UpdateUserBody<'a> {
             .email_verified(values.email_verified)
             .phone_number(values.phone_number)
             .build()
-
     }
 }

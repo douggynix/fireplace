@@ -1,7 +1,7 @@
 use env_logger::Env;
-use ulid::Ulid;
 use fireplace::auth::FirebaseAuthClient;
 use fireplace::auth::models::NewUser;
+use ulid::Ulid;
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +18,13 @@ async fn main() {
         .password("hello123".to_string())
         .email_verified(true)
         .build();
-    auth_client.create_user(new_user).await.expect("Failed to create user");
-    let users = auth_client.get_all_users().await.expect("Failed to get users");
+    auth_client
+        .create_user(new_user)
+        .await
+        .expect("Failed to create user");
+    let users = auth_client
+        .get_all_users()
+        .await
+        .expect("Failed to get users");
     println!(" Here are the list of users {:#?}", users);
 }

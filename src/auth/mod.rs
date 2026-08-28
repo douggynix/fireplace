@@ -206,6 +206,10 @@ use anyhow::Context;
 use reqwest::{Client, ClientBuilder, Response};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+use self::{
+    credential::{ApiAuthTokenManager, UserTokenManager},
+    models::{GetAccountInfoResponse, NewUser, User},
+};
 use crate::{
     ServiceAccount,
     auth::{
@@ -213,10 +217,6 @@ use crate::{
         models::{BatchGetResponse, UpdateUserBody, UpdateUserValues},
     },
     error::FirebaseError,
-};
-use self::{
-    credential::{ApiAuthTokenManager, UserTokenManager},
-    models::{GetAccountInfoResponse, NewUser, User},
 };
 
 mod credential;
@@ -233,7 +233,6 @@ pub struct FirebaseAuthClient {
     emulated: bool,
 }
 
-
 impl FirebaseAuthClient {
     pub fn new(service_account: ServiceAccount) -> Result<Self, FirebaseError> {
         let client_builder = Self::http_client_builder(None)?;
@@ -242,14 +241,20 @@ impl FirebaseAuthClient {
             .build()
             .context("Failed to create HTTP client")?;
 
-
-
-        Ok(Self::create_firebase_auth_client(client,
-              "https://identitytoolkit.googleapis.com/v1", service_account,false))
+        Ok(Self::create_firebase_auth_client(
+            client,
+            "https://identitytoolkit.googleapis.com/v1",
+            service_account,
+            false,
+        ))
     }
 
     fn create_firebase_auth_client(
-        client: Client, firebase_auth_api_url: &str ,service_account: ServiceAccount, emulated: bool) -> Self{
+        client: Client,
+        firebase_auth_api_url: &str,
+        service_account: ServiceAccount,
+        emulated: bool,
+    ) -> Self {
         let credential_manager = ApiAuthTokenManager::new(service_account.clone());
         let project_id = service_account.project_id.clone();
         let token_handler = UserTokenManager::new(service_account, client.clone());
@@ -264,15 +269,22 @@ impl FirebaseAuthClient {
         }
     }
 
-    pub fn new_with_proxy(service_account: ServiceAccount, proxy_url: Option<&str>) -> Result<Self, FirebaseError> {
+    pub fn new_with_proxy(
+        service_account: ServiceAccount,
+        proxy_url: Option<&str>,
+    ) -> Result<Self, FirebaseError> {
         let client_builder = Self::http_client_builder(proxy_url)?;
         let client = client_builder
             .https_only(true)
             .build()
             .context("Failed to create HTTP client")?;
 
-        Ok(Self::create_firebase_auth_client(client,
-                "https://identitytoolkit.googleapis.com/v1", service_account,false))
+        Ok(Self::create_firebase_auth_client(
+            client,
+            "https://identitytoolkit.googleapis.com/v1",
+            service_account,
+            false,
+        ))
     }
 
     const EMULATOR_DUMMY_KEY: &'static str = "-----BEGIN PRIVATE KEY-----
@@ -305,14 +317,14 @@ lPTlzALOoknxQtKOWgLsu7XF
 -----END PRIVATE KEY-----
 ";
 
-    pub fn emulator(emulator_url:  &str, proxy_url: Option<&str>) -> Result<Self, FirebaseError> {
+    pub fn emulator(emulator_url: &str, proxy_url: Option<&str>) -> Result<Self, FirebaseError> {
         let client_builder = Self::http_client_builder(proxy_url)?;
         let client = client_builder
             .https_only(false)
             .build()
             .context("Failed to create HTTP client for emulator")?;
 
-        let dummy_service_account = ServiceAccount{
+        let dummy_service_account = ServiceAccount {
             project_id: "demo-firebase-project".to_string(),
             private_key: Self::EMULATOR_DUMMY_KEY.to_string(),
             private_key_id: "mock_private_key_id_123456789".to_string(),
@@ -321,22 +333,25 @@ lPTlzALOoknxQtKOWgLsu7XF
         };
 
         let emulator_auth_url = format!("{emulator_url}/identitytoolkit.googleapis.com/v1");
-        Ok(Self::create_firebase_auth_client(client, emulator_auth_url.as_str(), dummy_service_account, true))
+        Ok(Self::create_firebase_auth_client(
+            client,
+            emulator_auth_url.as_str(),
+            dummy_service_account,
+            true,
+        ))
     }
 
-    fn http_client_builder(proxy_uri :Option<&str>) -> Result<ClientBuilder, FirebaseError>{
+    fn http_client_builder(proxy_uri: Option<&str>) -> Result<ClientBuilder, FirebaseError> {
         let client_builder = Client::builder();
-       match proxy_uri {
-           Some(proxy_url) => {
-               let proxy = reqwest::Proxy::all(proxy_url)
-                   .context(format!("Failed to connect proxy {}", proxy_url))?;
+        match proxy_uri {
+            Some(proxy_url) => {
+                let proxy = reqwest::Proxy::all(proxy_url)
+                    .context(format!("Failed to connect proxy {}", proxy_url))?;
 
-               Ok(client_builder.proxy(proxy))
-           }
-           None => {
-               Ok(client_builder)
-           }
-       }
+                Ok(client_builder.proxy(proxy))
+            }
+            None => Ok(client_builder),
+        }
     }
 
     fn url(&self, path: impl AsRef<str>) -> String {
@@ -353,7 +368,7 @@ lPTlzALOoknxQtKOWgLsu7XF
     }
 
     async fn get_access_token(&self) -> Result<String, FirebaseError> {
-        let access_token = match self.emulated{
+        let access_token = match self.emulated {
             true => "owner".to_string(),
             false => self
                 .api_auth_token_manager
@@ -362,7 +377,7 @@ lPTlzALOoknxQtKOWgLsu7XF
                 .map_err(|e| {
                     tracing::error!("Failed to get access token: {e}");
                     e
-                })?
+                })?,
         };
 
         Ok(access_token)
