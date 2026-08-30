@@ -3,22 +3,28 @@ use serde_with::skip_serializing_none;
 use typed_builder_macro::TypedBuilder;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, TypedBuilder)]
+#[derive(Default, Debug, Clone, Serialize, TypedBuilder)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateUserValues {
-    #[builder(default = None, setter(into))]
+    #[builder(default = None)]
     display_name: Option<String>,
-    #[builder(default = None, setter(into))]
+    #[builder(default = None)]
     email: Option<String>,
-    #[builder(default = None, setter(into))]
+    #[builder(default = None)]
     password: Option<String>,
-    #[builder(default = None, setter(into))]
+    #[builder(default = None)]
     #[serde(rename = "disableUser")]
     disabled: Option<bool>,
-    #[builder(default = None, setter(into))]
+    #[builder(default = None)]
     email_verified: Option<bool>,
-    #[builder(default = None, setter(into))]
+    #[builder(default = None)]
     pub phone_number: Option<String>,
+}
+
+impl UpdateUserValues {
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 #[skip_serializing_none]

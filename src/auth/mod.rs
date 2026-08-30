@@ -96,7 +96,7 @@
 //!     "user_id_here",
 //!     UpdateUserValues::builder()
 //!         .display_name(Some("Jane Doe".to_string()))
-//!         .disabled(false)
+//!         .disabled(Some(false))
 //!         .build()
 //! ).await?;
 //! # Ok(())
@@ -210,6 +210,7 @@ use self::{
     credential::{ApiAuthTokenManager, UserTokenManager},
     models::{GetAccountInfoResponse, NewUser, User},
 };
+use crate::auth::models::AuthClaims;
 use crate::{
     ServiceAccount,
     auth::{
@@ -225,7 +226,7 @@ pub mod models;
 pub mod test_helpers;
 
 pub struct FirebaseAuthClient {
-    client: reqwest::Client,
+    client: Client,
     api_url: String,
     user_token_manager: UserTokenManager,
     api_auth_token_manager: ApiAuthTokenManager,
@@ -446,8 +447,8 @@ lPTlzALOoknxQtKOWgLsu7XF
     ///         NewUser::builder()
     ///             .display_name("Mario".to_string())
     ///             .username("mario".to_string())
-    ///             .email(format!("{}@example.com", Ulid::new()))
-    ///             .password( Ulid::new().to_string())
+    ///             .email(format!("{}@example.com", Ulid::generate()))
+    ///             .password( Ulid::generate().to_string())
     ///             .email_verified(false)
     ///             .build()
     ///     )
@@ -503,8 +504,8 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// #        NewUser::builder()
     /// #            .display_name("Mario".to_string())
     /// #            .username("mario".to_string())
-    /// #            .email(format!("{}@example.com", Ulid::new()))
-    /// #            .password( Ulid::new().to_string())
+    /// #            .email(format!("{}@example.com", Ulid::generate()))
+    /// #            .password( Ulid::generate().to_string())
     /// #            .email_verified(false)
     /// #            .build()
     /// #        )
@@ -595,14 +596,14 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// use ulid::Ulid;
     ///
     /// // Create a user we can fetch afterwards
-    /// let email = format!("{}@example.com", Ulid::new());
+    /// let email = format!("{}@example.com", Ulid::generate());
     /// let user = auth_client
     ///     .create_user(
     ///         NewUser::builder()
     ///             .display_name("Mario".to_string())
     ///             .username("mario".to_string())
-    ///             .email(format!("{}@example.com", Ulid::new()))
-    ///             .password( Ulid::new().to_string())
+    ///             .email(format!("{}@example.com", Ulid::generate()))
+    ///             .password( Ulid::generate().to_string())
     ///             .email_verified(false)
     ///             .build()
     ///     )
@@ -793,8 +794,8 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// let new_user = NewUser::builder()
     ///     .display_name("Mario".to_string())
     ///     .username("mario".to_string())
-    ///     .email(format!("{}@example.com", Ulid::new()))
-    ///     .password( Ulid::new().to_string())
+    ///     .email(format!("{}@example.com", Ulid::generate()))
+    ///     .password( Ulid::generate().to_string())
     ///     .email_verified(false)
     ///     .build();
     ///
@@ -866,16 +867,21 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// use fireplace::auth::models::{NewUser, UpdateUserValues};
     /// use ulid::Ulid;
     ///
+    /// let username = format!("julius-{}", Ulid::generate());
+    /// let new_user = NewUser::builder()
+    ///     .display_name("Julius Caesar".to_string())
+    ///     .username(username.to_string())
+    ///     .email(format!("{}@example.com", username.to_string()))
+    ///     .password(Ulid::generate().to_string())
+    ///     .email_verified(false)
+    ///     .build();
+    ///
     /// let user_id = auth_client
-    ///     .create_user(NewUser {
-    ///         display_name: Some("Julius Caesar".to_string()),
-    ///         email: format!("caesar@rome{}.it", Ulid::new()),
-    ///         password: "venividivici".to_string(),
-    ///     })
+    ///     .create_user(new_user)
     ///     .await?;
     ///
     /// // Give a new value for the email
-    /// let new_email = format!("caesar@deceased{}.it", Ulid::new());
+    /// let new_email = format!("caesar@deceased{}.it", Ulid::generate());
     ///
     /// // Pass `None` to delete a field
     /// let new_display_name: Option<String> = None;
@@ -884,8 +890,8 @@ lPTlzALOoknxQtKOWgLsu7XF
     ///     .update_user(
     ///         &user_id,
     ///          UpdateUserValues::builder()
-    ///             .email(&new_email)
     ///             .display_name(new_display_name)
+    ///             .email(Some(new_email.clone()))
     ///             .build(),
     ///     )
     ///     .await?;
@@ -905,17 +911,21 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// use fireplace::auth::models::{NewUser, UpdateUserValues};
     /// use ulid::Ulid;
     ///
+    /// let username = format!("julius-{}", Ulid::generate());
+    /// let new_user = NewUser::builder()
+    ///     .display_name("Julius Caesar".to_string())
+    ///     .email(format!("{}@example.com", username))
+    ///     .password(Ulid::generate().to_string())
+    ///     .email_verified(false)
+    ///     .build();
+    ///
     /// let user_id = auth_client
-    ///     .create_user(NewUser {
-    ///         display_name: Some("Test User".to_string()),
-    ///         email: format!("{}@example.com", Ulid::new()),
-    ///         password: Ulid::new().to_string(),
-    ///     })
+    ///     .create_user(new_user)
     ///     .await?;
     ///
     /// // Disable the user
     /// auth_client
-    ///     .update_user(&user_id, UpdateUserValues::new().disabled(true))
+    ///     .update_user(&user_id, UpdateUserValues::builder().disabled(Some(true)).build())
     ///     .await?;
     ///
     /// // Verify the user is disabled
@@ -924,7 +934,7 @@ lPTlzALOoknxQtKOWgLsu7XF
     ///
     /// // Re-enable the user
     /// auth_client
-    ///     .update_user(&user_id, UpdateUserValues::new().disabled(false))
+    ///     .update_user(&user_id, UpdateUserValues::builder().disabled(Some(false)).build())
     ///     .await?;
     ///
     /// // Verify the user is enabled again
@@ -1032,12 +1042,16 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// use ulid::Ulid;
     ///
     /// // Create a user we can set some claims on
+    /// let username = format!("julius-{}", Ulid::generate());
+    /// let new_user = NewUser::builder()
+    ///     .display_name("Julius Caesar".to_string())
+    ///     .email(format!("{}@example.com", username))
+    ///     .password(Ulid::generate().to_string())
+    ///     .email_verified(false)
+    ///     .build();
+    ///
     /// let user_id = auth_client
-    ///     .create_user(NewUser {
-    ///         display_name: Some("Mario".to_string()),
-    ///         email: format!("{}@example.com", Ulid::new()),
-    ///         password: Ulid::new().to_string(),
-    ///     })
+    ///     .create_user(new_user)
     ///     .await?;
     ///
     /// // Initially, the user will have no claims
@@ -1097,6 +1111,94 @@ lPTlzALOoknxQtKOWgLsu7XF
         tracing::debug!("Set custom claims for user '{}'", user_id);
 
         Ok(())
+    }
+
+    /// Authenticates a user with the Firebase Identity Toolkit using an email and password.
+    ///
+    /// Sends an HTTP `POST` request to the `/accounts:signInWithPassword` endpoint to exchange
+    /// user credentials for authentication tokens and claims.
+    ///
+    /// # Arguments
+    ///
+    /// * `email` - The user's registered email address.
+    /// * `password` - The raw password associated with the account.
+    /// * `secure_token` - Whether to return an ID token and refresh token in the response (`true` recommended).
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(AuthClaims)` - Upon successful authentication, returns claims containing token details and account metadata.
+    /// * `Err(FirebaseError)` - If the credentials are invalid, the account is disabled, or a network/parsing error occurs.
+    ///
+    /// # Errors
+    ///
+    /// This function will return [`FirebaseError`](crate::error::FirebaseError) if:
+    ///
+    /// * The Firebase API returns an error response (e.g., `EMAIL_NOT_FOUND`, `INVALID_PASSWORD`, `USER_DISABLED`).
+    /// * Sending the HTTP request to the Firebase Identity Toolkit fails.
+    /// * Parsing the response or error body JSON fails.
+    ///
+    /// # Tracing & Telemetry
+    ///
+    /// This function is instrumented with `tracing::instrument`. The `password` argument is **skipped**
+    /// from the generated trace span to prevent sensitive credentials from leaking into logs.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), fireplace::error::FirebaseError> {
+    /// # let auth_client = fireplace::auth::test_helpers::initialise()?;
+    /// use ulid::Ulid;
+
+    /// let username = format!("julius-{}", Ulid::generate());
+    /// let email = format!("{}@example.com", username);
+    /// let password = Ulid::generate().to_string();
+    ///
+    /// let claims = auth_client
+    ///     .login_with_password(&email, &password, true)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[tracing::instrument(name = "login with password", skip(self, password))]
+    pub async fn login_with_password(
+        &self,
+        email: &str,
+        password: &str,
+        secure_token: bool,
+    ) -> Result<AuthClaims, FirebaseError> {
+        let body = serde_json::json!({
+            "email": email,
+            "password": password,
+            "returnSecureToken": secure_token,
+        });
+
+        let res = self
+            .auth_post(self.url("/accounts:signInWithPassword"))
+            .await?
+            .header("Content-Type", "application/json")
+            .body(body.to_string())
+            .send()
+            .await
+            .context("Failed to send password login request")?;
+
+        if !res.status().is_success() {
+            let err = res
+                .json::<AuthApiErrorResponse>()
+                .await
+                .context("Failed to read error response JSON")?
+                .into();
+
+            tracing::error!("Failed to authenticate password credentials: {err}");
+
+            return Err(err);
+        }
+
+        let claims: AuthClaims = res.json().await.context("Failed to read response JSON")?;
+
+        tracing::debug!("User logged in successfully {:?}", claims);
+
+        Ok(claims)
     }
 }
 

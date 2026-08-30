@@ -81,3 +81,28 @@ pub struct NewUser {
     #[builder(default = None, setter(into))]
     pub phone_number: Option<String>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, TypedBuilder)]
+pub struct AuthClaims {
+    pub kind: String,
+    pub registered: bool,
+    #[serde(rename = "localId")]
+    pub local_id: String,
+    pub email: String,
+    #[serde(rename = "idToken")]
+    pub id_token: String,
+    #[serde(rename = "refreshToken")]
+    pub refresh_token: String,
+    #[serde(rename = "expiresIn", deserialize_with = "deserialize_from_str")]
+    pub expires_in: u16,
+}
+
+fn deserialize_from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: FromStr,
+    T::Err: std::fmt::Display,
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    T::from_str(&s).map_err(serde::de::Error::custom)
+}
