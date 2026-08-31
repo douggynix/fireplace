@@ -23,6 +23,7 @@
 //!   * [Creating custom tokens](#creating-custom-tokens)
 //!   * [Verifying ID tokens](#verifying-id-tokens)
 //! - [Custom claims](#custom-claims)
+//! - [Username Password Login](#username-password-login)
 //!
 //! ## Initializing the client
 //!
@@ -199,6 +200,23 @@
 //!
 //! These claims will appear in the user's ID token after they re-authenticate.
 //! See [`FirebaseAuthClient::set_custom_user_claims`] for more details.
+//!
+//! ## Username Password Login
+//!
+//!Use username and password credentials to authenticate user in order to retrive access and refresh tokens
+//!
+//! ```no_run
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), fireplace::error::FirebaseError> {
+//! # let auth_client = fireplace::auth::test_helpers::initialise()?;
+//!
+//! let auth_claims = auth_client.login_with_password("joe","password", true).await?;
+//! print!("User authenticated successfully : {:?}", auth_claims);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! See [`FirebaseAuthClient::login_with_password`] for more details.
 
 use std::collections::HashMap;
 
@@ -1131,7 +1149,7 @@ lPTlzALOoknxQtKOWgLsu7XF
     ///
     /// # Errors
     ///
-    /// This function will return [`FirebaseError`](crate::error::FirebaseError) if:
+    /// This function will return [`FirebaseError`](FirebaseError) if:
     ///
     /// * The Firebase API returns an error response (e.g., `EMAIL_NOT_FOUND`, `INVALID_PASSWORD`, `USER_DISABLED`).
     /// * Sending the HTTP request to the Firebase Identity Toolkit fails.
@@ -1144,21 +1162,11 @@ lPTlzALOoknxQtKOWgLsu7XF
     ///
     /// # Example
     ///
-    /// ```rust
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<(), fireplace::error::FirebaseError> {
-    /// # let auth_client = fireplace::auth::test_helpers::initialise()?;
-    /// use ulid::Ulid;
-
-    /// let username = format!("julius-{}", Ulid::generate());
-    /// let email = format!("{}@example.com", username);
-    /// let password = Ulid::generate().to_string();
-    ///
-    /// let claims = auth_client
-    ///     .login_with_password(&email, &password, true)
-    ///     .await?;
-    /// # Ok(())
-    /// # }
+    /// ```
+    /// let auth_claims = auth_client
+    ///     .login_with_password("joe", "password", true)
+    ///     .await.expect("Authentication Failure for user login with password");
+    /// println!("User logged in successfully : {:?}", auth_claims);
     /// ```
     #[tracing::instrument(name = "login with password", skip(self, password))]
     pub async fn login_with_password(
