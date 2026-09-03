@@ -19,9 +19,9 @@ serde_json = "1.0.108"
 tokio = { version = "1.34.0", features = ["full"] }
 prost-types = "0.9.0"
 thiserror = "2.0.20"
-jsonwebtoken = "11.0.0"
+jsonwebtoken = { version = "11.0.0" , features = ["rust_crypto", "use_pem"] }
 futures = "0.3.31"
-reqwest = { version = "0.13.4", features = ["json"] }
+reqwest = { version = "0.13.4", features = ["json", "form"] }
 tracing = "0.1.40"
 openssl = "0.10.60"
 once_cell = "1.18.0"
@@ -29,6 +29,7 @@ erased-serde = "0.4.6"
 typed-builder-macro = "0.23.2"
 typed-builder = "0.23.2"
 serde_with = "3.22"
+url = "2.5.8"
 
 [dev-dependencies]
 ulid = "3.0.0"

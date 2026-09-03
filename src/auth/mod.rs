@@ -220,15 +220,11 @@
 
 use std::collections::HashMap;
 
-use anyhow::Context;
-use reqwest::{Client, ClientBuilder, Response};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-
 use self::{
     credential::{ApiAuthTokenManager, UserTokenManager},
     models::{GetAccountInfoResponse, NewUser, User},
 };
-use crate::auth::models::AuthClaims;
+use crate::auth::models::{AuthClaims, RefreshTokenClaims};
 use crate::{
     ServiceAccount,
     auth::{
@@ -237,6 +233,10 @@ use crate::{
     },
     error::FirebaseError,
 };
+use anyhow::Context;
+use reqwest::{Client, ClientBuilder, Response};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use url::Url;
 
 mod credential;
 mod error;
@@ -290,11 +290,13 @@ impl FirebaseAuthClient {
 
     pub fn new_with_proxy(
         service_account: ServiceAccount,
-        proxy_url: Option<&str>,
+        proxy_url: &str,
+        accept_invalid_certificate: bool,
     ) -> Result<Self, FirebaseError> {
-        let client_builder = Self::http_client_builder(proxy_url)?;
+        let client_builder = Self::http_client_builder(Some(proxy_url))?;
         let client = client_builder
             .https_only(true)
+            .danger_accept_invalid_certs(accept_invalid_certificate)
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -340,6 +342,7 @@ lPTlzALOoknxQtKOWgLsu7XF
         let client_builder = Self::http_client_builder(proxy_url)?;
         let client = client_builder
             .https_only(false)
+            .danger_accept_invalid_certs(true)
             .build()
             .context("Failed to create HTTP client for emulator")?;
 
@@ -411,9 +414,16 @@ lPTlzALOoknxQtKOWgLsu7XF
         let access_token = self.get_access_token().await?;
 
         let builder = self
-            .client
             .post(url.as_ref())
+            .await?
             .header("Authorization", format!("Bearer {access_token}"));
+
+        Ok(builder)
+    }
+
+    /// Creates a new `POST` request builder without `Authorization` header set
+    async fn post(&self, url: impl AsRef<str>) -> Result<reqwest::RequestBuilder, FirebaseError> {
+        let builder = self.client.post(url.as_ref());
 
         Ok(builder)
     }
@@ -1207,6 +1217,55 @@ lPTlzALOoknxQtKOWgLsu7XF
         tracing::debug!("User logged in successfully {:?}", claims);
 
         Ok(claims)
+    }
+
+    #[tracing::instrument(name = "refresh token", skip(self, api_key, refresh_token))]
+    pub async fn refresh_token(
+        &self,
+        api_key: &str,
+        refresh_token: &str,
+    ) -> Result<RefreshTokenClaims, FirebaseError> {
+        let mut params = HashMap::new();
+        params.insert("grant_type", "refresh_token");
+        params.insert("refresh_token", refresh_token);
+
+        let refresh_token_url = match self.emulated {
+            true => {
+                let base_emulator_url = Url::parse(self.api_url.as_ref())
+                    .context("Failure to parse url for emulator")?
+                    .origin()
+                    .ascii_serialization();
+                format!("{base_emulator_url}/securetoken.googleapis.com/v1/token?key={api_key}")
+            }
+            false => format!("/token?key={api_key}"),
+        };
+        let res = self
+            .post(refresh_token_url)
+            .await?
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .form(&params)
+            .send()
+            .await
+            .context("Failed to send password login request")?;
+
+        if !res.status().is_success() {
+            let err = res
+                .json::<AuthApiErrorResponse>()
+                .await
+                .context("Failed to deserialize JSON Response")?
+                .into();
+
+            tracing::error!("Failed to refresh user token: {err}");
+
+            return Err(err);
+        }
+
+        let refresh_claims: RefreshTokenClaims =
+            res.json().await.context("Failed to read response JSON")?;
+
+        tracing::debug!("Token refresh is successful {:?}", refresh_claims);
+
+        Ok(refresh_claims)
     }
 }
 

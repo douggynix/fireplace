@@ -97,6 +97,18 @@ pub struct AuthClaims {
     pub expires_in: u16,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, TypedBuilder)]
+pub struct RefreshTokenClaims {
+    pub access_token: String,
+    pub id_token: String,
+    pub refresh_token: String,
+    pub token_type: String,
+    #[serde(deserialize_with = "deserialize_from_str")]
+    pub expires_in: u16,
+    pub user_id: String,
+    pub project_id: String,
+}
+
 fn deserialize_from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
 where
     T: FromStr,

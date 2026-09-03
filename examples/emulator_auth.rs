@@ -10,8 +10,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .is_test(false)
         .init();
 
-    let auth_client = FirebaseAuthClient::emulator("http://127.0.0.1:9099", None)
-        .expect("Failed to create auth client");
+    let auth_client = FirebaseAuthClient::emulator("http://localhost:9099", None)?;
 
     let uid = Ulid::generate();
     let new_user = NewUser::builder()
@@ -38,6 +37,15 @@ async fn main() -> Result<(), anyhow::Error> {
         .context("Failed to authenticate password credentials")?;
 
     println!("User logged in successfully {:?}", auth_claims);
+
+    let api_key = "API_KEY";
+
+    let token_refresh_claims = auth_client
+        .refresh_token(api_key, auth_claims.refresh_token.as_str())
+        .await
+        .context("Failure refreshing token")?;
+
+    println!("Token refreshing successfully {:?}", token_refresh_claims);
 
     Ok(())
 }
