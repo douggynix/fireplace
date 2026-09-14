@@ -38,6 +38,13 @@ async fn main() -> Result<(), anyhow::Error> {
 
     println!("User logged in successfully {:?}", auth_claims);
 
+    let decoded_claims: serde_json::Value = auth_client
+        .decode_id_token(auth_claims.id_token.as_str())
+        .await
+        .context("Failed to decode token")?;
+
+    println!("Here are the decoded claims {:#?}", decoded_claims);
+
     let api_key = "API_KEY";
 
     let token_refresh_claims = auth_client

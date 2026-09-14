@@ -233,8 +233,9 @@ use crate::{
     },
     error::FirebaseError,
 };
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use chrono::Utc;
+use jsonwebtoken::dangerous::insecure_decode_claims;
 use reqwest::{Client, ClientBuilder, Response};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use url::Url;
@@ -580,11 +581,18 @@ lPTlzALOoknxQtKOWgLsu7XF
         &self,
         token: &str,
     ) -> Result<C, FirebaseError> {
-        let id_token_claims = self
-            .user_token_manager
-            .decode_id_token(token)
-            .await
-            .map_err(FirebaseError::ValidateTokenError)?;
+        let id_token_claims = match self.emulated {
+            true => {
+                insecure_decode_claims::<C>(token).map_err(|err: jsonwebtoken::errors::Error| {
+                    FirebaseError::ValidateTokenError(anyhow!(err))
+                })?
+            }
+            false => self
+                .user_token_manager
+                .decode_id_token(token)
+                .await
+                .map_err(FirebaseError::ValidateTokenError)?,
+        };
 
         Ok(id_token_claims)
     }
