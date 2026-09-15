@@ -25,3 +25,4 @@ pub mod firestore;
 mod service_account;
 
 pub use service_account::ServiceAccount;
+pub use typed_builder::TypedBuilder;
