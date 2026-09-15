@@ -94,7 +94,7 @@ pub struct AuthClaims {
     #[serde(rename = "refreshToken")]
     pub refresh_token: String,
     #[serde(rename = "expiresIn", deserialize_with = "deserialize_from_str")]
-    pub expires_in: u16,
+    pub expires_in: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TypedBuilder)]
@@ -104,7 +104,7 @@ pub struct RefreshTokenClaims {
     pub refresh_token: String,
     pub token_type: String,
     #[serde(deserialize_with = "deserialize_from_str")]
-    pub expires_in: u16,
+    pub expires_in: u64,
     pub user_id: String,
     pub project_id: String,
 }
