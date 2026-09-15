@@ -25,4 +25,5 @@ pub mod firestore;
 mod service_account;
 
 pub use service_account::ServiceAccount;
-pub use typed_builder::TypedBuilder;
+pub use models::NewUserBuilder;
+use crate::auth::models;
