@@ -24,6 +24,6 @@ pub mod error;
 pub mod firestore;
 mod service_account;
 
-pub use service_account::ServiceAccount;
-pub use models::NewUserBuilder;
 use crate::auth::models;
+pub use models::NewUserBuilder;
+pub use service_account::ServiceAccount;

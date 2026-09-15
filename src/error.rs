@@ -11,8 +11,17 @@ pub enum FirebaseError {
     #[error("Email already exists")]
     EmailAlreadyExists,
 
+    #[error("UserId already exists")]
+    UserIdAlreadyExists,
+
     #[error("User not found")]
     UserNotFound,
+
+    #[error("Invalid user email")]
+    InvalidEmail,
+
+    #[error("Invalid password credentials")]
+    InvalidPassword,
 
     #[error("Failed to validate token: {0}")]
     ValidateTokenError(anyhow::Error),
