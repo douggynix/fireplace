@@ -10,8 +10,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .is_test(false)
         .init();
 
-    let auth_client =
-        FirebaseAuthClient::emulator("http://localhost:9099", Some("http://localhost:9000"))?;
+    let auth_client = FirebaseAuthClient::emulator("http://localhost:9099", None)?;
 
     let uid = Ulid::generate();
     let new_user = NewUser::builder()
