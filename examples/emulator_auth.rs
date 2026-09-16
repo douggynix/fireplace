@@ -10,7 +10,8 @@ async fn main() -> Result<(), anyhow::Error> {
         .is_test(false)
         .init();
 
-    let auth_client = FirebaseAuthClient::emulator("http://localhost:9099", None)?;
+    let auth_client =
+        FirebaseAuthClient::emulator("http://localhost:9099", Some("http://localhost:9000"))?;
 
     let uid = Ulid::generate();
     let new_user = NewUser::builder()
@@ -20,7 +21,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .email_verified(false)
         .build();
 
-    auth_client
+    let user_id = auth_client
         .create_user(new_user.clone())
         .await
         .context("Failed to create user")?;
@@ -28,9 +29,17 @@ async fn main() -> Result<(), anyhow::Error> {
     let users = auth_client
         .get_all_users()
         .await
-        .context("Failed to get u sers")?;
+        .context("Failed to get Users")?;
 
     println!(" Here are the list of users {:#?}", users);
+
+    let user_query_result = auth_client
+        .get_user(&user_id)
+        .await
+        .context("Failed to get user")?;
+
+    println!("User result : {:?}", user_query_result);
+
     let auth_claims = auth_client
         .login_with_password(new_user.email.as_str(), new_user.password.as_str(), true)
         .await
@@ -43,7 +52,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .await
         .context("Failed to decode token")?;
 
-    println!("Here are the decoded claims {:#?}", decoded_claims);
+    println!("Token Claims decoded successfully {:?}", decoded_claims);
 
     let api_key = "API_KEY";
 

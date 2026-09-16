@@ -682,6 +682,7 @@ lPTlzALOoknxQtKOWgLsu7XF
         let res = self
             .auth_post(self.url("/accounts:lookup"))
             .await?
+            .header("Content-Type", "application/json")
             .body(body.to_string())
             .send()
             .await
@@ -993,6 +994,7 @@ lPTlzALOoknxQtKOWgLsu7XF
         let res = self
             .auth_post(self.url("/accounts:update"))
             .await?
+            .header("Content-Type", "application/json")
             .body(body)
             .send()
             .await
@@ -1039,6 +1041,7 @@ lPTlzALOoknxQtKOWgLsu7XF
         let res = self
             .auth_post(self.url("/accounts:signInWithCustomToken"))
             .await?
+            .header("Content-Type", "application/json")
             .body(body.to_string())
             .send()
             .await
@@ -1136,6 +1139,7 @@ lPTlzALOoknxQtKOWgLsu7XF
         let res = self
             .auth_post(self.url("/accounts:update"))
             .await?
+            .header("Content-Type", "application/json")
             .body(body.to_string())
             .send()
             .await
