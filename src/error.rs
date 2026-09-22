@@ -11,6 +11,9 @@ pub enum FirebaseError {
     #[error("Email already exists")]
     EmailAlreadyExists,
 
+    #[error("Email Not Found")]
+    EmailNotFound,
+
     #[error("UserId already exists")]
     UserIdAlreadyExists,
 
