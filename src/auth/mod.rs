@@ -36,6 +36,16 @@
 //! let auth_client = FirebaseAuthClient::new(service_account).unwrap();
 //! ```
 //!
+//! Create a [`FirebaseAuthClient`] using a Firebase emulator.
+//! The optional third argument is a proxy url in case you want to debug or analyze traffic
+//! for request header and body inspection during development for troubleshootings and debugging
+//!
+//! ```no_run
+//! use fireplace::{ServiceAccount, auth::FirebaseAuthClient};
+//!
+//! let auth_client = FirebaseAuthClient::emulator("http://localhost:9099", "demo-firebase-project", None).unwrap();
+//! ```
+//!
 //! ## User management
 //!
 //! ### Creating users
@@ -340,7 +350,11 @@ lPTlzALOoknxQtKOWgLsu7XF
 -----END PRIVATE KEY-----
 ";
 
-    pub fn emulator(emulator_url: &str, proxy_url: Option<&str>) -> Result<Self, FirebaseError> {
+    pub fn emulator(
+        emulator_url: &str,
+        project_id: &str,
+        proxy_url: Option<&str>,
+    ) -> Result<Self, FirebaseError> {
         let client_builder = Self::http_client_builder(proxy_url)?;
         let client = client_builder
             .https_only(false)
@@ -349,7 +363,7 @@ lPTlzALOoknxQtKOWgLsu7XF
             .context("Failed to create HTTP client for emulator")?;
 
         let dummy_service_account = ServiceAccount {
-            project_id: "demo-firebase-project".to_string(),
+            project_id: project_id.to_string(),
             private_key: Self::EMULATOR_DUMMY_KEY.to_string(),
             private_key_id: "mock_private_key_id_123456789".to_string(),
             client_email: "firebase-adminsdk-mock@://gserviceaccount.com".to_string(),
