@@ -1200,10 +1200,17 @@ lPTlzALOoknxQtKOWgLsu7XF
     /// # Example
     ///
     /// ```
+    /// use fireplace::auth::FirebaseAuthClient;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    ///  let auth_client =
+    ///         FirebaseAuthClient::emulator("http://localhost:9099", "demo-firebase-project", None).unwrap();
     /// let auth_claims = auth_client
     ///     .login_with_password("joe", "password", true)
     ///     .await.expect("Authentication Failure for user login with password");
     /// println!("User logged in successfully : {:?}", auth_claims);
+    /// }
     /// ```
     #[tracing::instrument(name = "login with password", skip(self, password))]
     pub async fn login_with_password(
