@@ -33,6 +33,7 @@ impl From<AuthApiErrorResponse> for FirebaseError {
             "INVALID_EMAIL" => FirebaseError::InvalidEmail,
             "INVALID_PASSWORD" => FirebaseError::InvalidPassword,
             "DUPLICATE_LOCAL_ID" => FirebaseError::UserIdAlreadyExists,
+            "INVALID_REFRESH_TOKEN" => FirebaseError::InvalidRefreshToken,
             _ => anyhow!("{:?}", err).into(),
         }
     }

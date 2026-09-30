@@ -26,6 +26,9 @@ pub enum FirebaseError {
     #[error("Invalid password credentials")]
     InvalidPassword,
 
+    #[error("Refresh token is invalid")]
+    InvalidRefreshToken,
+
     #[error("Failed to validate token: {0}")]
     ValidateTokenError(anyhow::Error),
 
