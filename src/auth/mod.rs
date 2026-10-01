@@ -628,7 +628,7 @@ lPTlzALOoknxQtKOWgLsu7XF
 
                 let valid_issuer = format!(
                     "https://securetoken.google.com/{project_id}",
-                    project_id = emulator_decoded_claims.sub
+                    project_id = self.project_id
                 );
 
                 if emulator_decoded_claims.iss != valid_issuer {
