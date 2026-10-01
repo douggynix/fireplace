@@ -597,6 +597,48 @@ lPTlzALOoknxQtKOWgLsu7XF
     ) -> Result<C, FirebaseError> {
         let id_token_claims = match self.emulated {
             true => {
+                #[derive(Debug, Deserialize)]
+                struct FirebaseClaims {
+                    user_id: String,
+                    iss: String,
+                    aud: String,
+                    sub: String,
+                    iat: i64,
+                    exp: i64,
+                    email: String,
+                }
+
+                let emulator_decoded_claims = insecure_decode_claims::<FirebaseClaims>(token)
+                    .map_err(|err: jsonwebtoken::errors::Error| {
+                        FirebaseError::ValidateTokenError(anyhow!(err))
+                    })?;
+
+                let now = Utc::now();
+                if emulator_decoded_claims.exp < now.timestamp() {
+                    return Err(FirebaseError::ValidateTokenError(anyhow!("Token Expired")));
+                }
+
+                if emulator_decoded_claims.aud != self.project_id {
+                    return Err(FirebaseError::ValidateTokenError(anyhow!(
+                        "Token audience field(aud) value '{}' is invalid. It must be {}",
+                        emulator_decoded_claims.aud,
+                        self.project_id
+                    )));
+                }
+
+                let valid_issuer = format!(
+                    "https://securetoken.google.com/{project_id}",
+                    project_id = emulator_decoded_claims.sub
+                );
+
+                if emulator_decoded_claims.iss != valid_issuer {
+                    return Err(FirebaseError::ValidateTokenError(anyhow!(
+                        "Token issuer field(iss) value '{}' is invalid. It must be {}",
+                        emulator_decoded_claims.iss,
+                        valid_issuer
+                    )));
+                }
+
                 insecure_decode_claims::<C>(token).map_err(|err: jsonwebtoken::errors::Error| {
                     FirebaseError::ValidateTokenError(anyhow!(err))
                 })?
